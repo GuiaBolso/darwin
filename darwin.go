@@ -11,13 +11,10 @@ type Migration struct {
 	Script      io.Reader
 }
 
-func (m Migration) Less(other Migration) bool {
-	return m.Version < other.Version
-}
-
 type Dialect interface {
 	CreateTableSQL() string
 	MigrateSQL() string
+	LastVersionSQL() string
 }
 
 type Darwin struct{}
@@ -58,8 +55,12 @@ func (m MySQLDialect) MigrateSQL() string {
 	return "INSERT INTO schema_migrations"
 }
 
-type Migrations []Migration
+func (m MySQLDialect) LastVersionSQL() string {
+	return "SELECT version FROM schema_migrations ORDER BY version DESC"
+}
 
-func (ml Migrations) Len() int           { return len(ml) }
-func (ml Migrations) Less(i, j int) bool { return ml[i].Less(ml[j]) }
-func (ml Migrations) Swap(i, j int)      { ml[i], ml[j] = ml[j], ml[i] }
+type ByVersion []Migration
+
+func (b ByVersion) Len() int           { return len(b) }
+func (b ByVersion) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
+func (b ByVersion) Less(i, j int) bool { return b[i].Version < b[j].Version }
