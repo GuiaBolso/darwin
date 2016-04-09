@@ -62,6 +62,10 @@ func createSchemaTable(db *sql.DB, dialect Dialect) error {
 func Migrate(db *sql.DB, dialect Dialect, migrations []Migration) error {
 	err := createSchemaTable(db, dialect)
 
+	if err != nil {
+		return err
+	}
+
 	sort.Sort(ByVersion(migrations))
 
 	for _, migration := range migrations {
@@ -103,12 +107,31 @@ type MySQLDialect struct{}
 
 // CreateTableSQL returns a schema create table
 func (m MySQLDialect) CreateTableSQL() string {
-	return "CREATE TABLE IF NOT EXISTS darwin_migrations (id INT AUTO_INCREMENT, version FLOAT NOT NULL, description VARCHAR(255) NOT NULL, checksum VARCHAR(32) NOT NULL, applied_at DATETIME NOT NULL, execution_time FLOAT NOT NULL, success BOOL NOT NULL, PRIMARY KEY (id));"
+	return `CREATE TABLE IF NOT EXISTS darwin_migrations
+				(
+					id             INT auto_increment,
+					version        FLOAT NOT NULL,
+					description    VARCHAR(255) NOT NULL,
+					checksum       VARCHAR(32) NOT NULL,
+					applied_at     DATETIME NOT NULL,
+					execution_time FLOAT NOT NULL,
+					success        BOOL NOT NULL,
+					PRIMARY KEY (id)
+				);`
 }
 
 // MigrateSQL returns a schema migrate table
 func (m MySQLDialect) MigrateSQL() string {
-	return "INSERT INTO darwin_migrations (version, description, checksum, applied_at, execution_time, success) VALUES (?, ?, ?, ?, ?, ?);"
+	return `INSERT INTO darwin_migrations
+				(
+					version,
+					description,
+					checksum,
+					applied_at,
+					execution_time,
+					success
+				)
+			VALUES (?, ?, ?, ?, ?, ?);`
 }
 
 // LastVersionSQL returns a new SQL fo get the last version in the database
