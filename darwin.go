@@ -1,8 +1,13 @@
 package darwin
 
 import (
+	"crypto/md5"
 	"database/sql"
+	"fmt"
 	"io"
+	"io/ioutil"
+	"sort"
+	"time"
 )
 
 // Migration represents a database migrations.
@@ -47,9 +52,50 @@ func Validate(db *sql.DB, dialect Dialect, migrations []Migration) bool {
 	return false
 }
 
+func createSchemaTable(db *sql.DB, dialect Dialect) error {
+	_, err := db.Exec(dialect.CreateTableSQL())
+
+	return err
+}
+
 // Migrate executes the missing migrations in database
 func Migrate(db *sql.DB, dialect Dialect, migrations []Migration) error {
-	return nil
+	err := createSchemaTable(db, dialect)
+
+	sort.Sort(ByVersion(migrations))
+
+	for _, migration := range migrations {
+		script, err := ioutil.ReadAll(migration.Script)
+
+		if err != nil {
+			return err
+		}
+
+		start := time.Now()
+		_, err = db.Exec(string(script))
+		elapsed := time.Since(start)
+
+		success := true
+
+		if err != nil {
+			success = false
+		}
+
+		_, err = db.Exec(dialect.MigrateSQL(),
+			migration.Version,
+			migration.Description,
+			fmt.Sprintf("%x", md5.Sum(script)),
+			time.Now().Format(time.RFC3339),
+			elapsed.Seconds(),
+			success,
+		)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return err
 }
 
 // MySQLDialect holds the definition of a MySQL dialect
@@ -57,17 +103,17 @@ type MySQLDialect struct{}
 
 // CreateTableSQL returns a schema create table
 func (m MySQLDialect) CreateTableSQL() string {
-	return "CREATE TABLE schema_migrations"
+	return "CREATE TABLE IF NOT EXISTS darwin_migrations (id INT AUTO_INCREMENT, version FLOAT NOT NULL, description VARCHAR(255) NOT NULL, checksum VARCHAR(32) NOT NULL, applied_at DATETIME NOT NULL, execution_time FLOAT NOT NULL, success BOOL NOT NULL, PRIMARY KEY (id));"
 }
 
 // MigrateSQL returns a schema migrate table
 func (m MySQLDialect) MigrateSQL() string {
-	return "INSERT INTO schema_migrations"
+	return "INSERT INTO darwin_migrations (version, description, checksum, applied_at, execution_time, success) VALUES (?, ?, ?, ?, ?, ?);"
 }
 
 // LastVersionSQL returns a new SQL fo get the last version in the database
 func (m MySQLDialect) LastVersionSQL() string {
-	return "SELECT version FROM schema_migrations ORDER BY version DESC"
+	return "SELECT version FROM darwin_migrations ORDER BY version DESC"
 }
 
 // ByVersion implements the Sort interface sorting bt Version

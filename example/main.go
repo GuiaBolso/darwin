@@ -2,10 +2,11 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
+	"log"
 	"strings"
 
 	"github.com/dimiro1/darwin"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 /*
@@ -19,35 +20,36 @@ import (
 // Version is a float
 // Valid version numbers are 1, 2, 3, 3.1 etc
 // migrations are sorted by this version number
+// Build a Migration plan
+// Execute the plan.
 // https://flywaydb.org/documentation/maven/validate
 var (
 	migrations = []darwin.Migration{
 		darwin.Migration{
 			Version:     1.0,
 			Description: "Creating table people",
-			Script:      strings.NewReader("CREATE TABLE people (id int)"),
+			Script:      strings.NewReader("CREATE TABLE people (id INT);"),
+		},
+		darwin.Migration{
+			Version:     1.1,
+			Description: "Creating table animals",
+			Script:      strings.NewReader("CREATE TABLE animals (id INT);"),
 		},
 	}
 )
 
 func main() {
-	database, err := sql.Open("mysql", "/")
+	database, err := sql.Open("mysql", "root:@/darwin")
 
 	if err != nil {
-		// Handle errors!
+		log.Println(err)
+		return
 	}
-
-	m := darwin.NewForMySQL(database, migrations)
-	m.Validate()
-	m.Migrate()
-
-	ok := darwin.Validate(database, darwin.MySQLDialect{}, migrations)
-
-	fmt.Println(ok)
 
 	err = darwin.Migrate(database, darwin.MySQLDialect{}, migrations)
 
 	if err != nil {
-		// Handle errors!
+		log.Println(err)
+		return
 	}
 }
