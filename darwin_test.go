@@ -2,6 +2,7 @@ package darwin
 
 import (
 	"database/sql/driver"
+	"fmt"
 	"regexp"
 	"strings"
 	"testing"
@@ -30,13 +31,15 @@ func TestMigrate(t *testing.T) {
 		Script:      strings.NewReader(query),
 	}
 
+	mock.ExpectBegin()
 	mock.ExpectExec(escapeQuery(query)).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
 
 	migrations := []Migration{migration}
 
 	mock.ExpectExec(escapeQuery(dialect.MigrateSQL())).WithArgs(
 		1.0, "Creating table people", "7ebca1c6f05333a728a8db4629e8d543",
-		anyRFC3339{}, sqlmock.AnyArg(), true).WillReturnResult(sqlmock.NewResult(1, 1))
+		&anyRFC3339{}, sqlmock.AnyArg(), true).WillReturnResult(sqlmock.NewResult(1, 1))
 
 	Migrate(db, dialect, migrations)
 
@@ -60,10 +63,18 @@ func escapeQuery(s string) string {
 	return s1
 }
 
-type anyRFC3339 struct{}
+type anyRFC3339 struct {
+	value interface{}
+}
+
+func (a *anyRFC3339) String() string {
+	return fmt.Sprintf("%v", a.value)
+}
 
 // Match satisfies sqlmock.Argument interface
-func (a anyRFC3339) Match(v driver.Value) bool {
+func (a *anyRFC3339) Match(v driver.Value) bool {
+	a.value = v
+
 	_, ok := v.(string)
 
 	if !ok {

@@ -48,6 +48,9 @@ func NewForMySQL(db *sql.DB, migrations []Migration) Darwin {
 }
 
 // Validate if the database migratins are applied and consistent
+// Verify duplicated migrations
+// Verify Invalid version migrations, version is nil
+// Verify invalid migrations, version < 0
 func Validate(db *sql.DB, dialect Dialect, migrations []Migration) bool {
 	return false
 }
@@ -69,6 +72,8 @@ func Migrate(db *sql.DB, dialect Dialect, migrations []Migration) error {
 	sort.Sort(ByVersion(migrations))
 
 	for _, migration := range migrations {
+		success := true
+
 		script, err := ioutil.ReadAll(migration.Script)
 
 		if err != nil {
@@ -76,10 +81,30 @@ func Migrate(db *sql.DB, dialect Dialect, migrations []Migration) error {
 		}
 
 		start := time.Now()
-		_, err = db.Exec(string(script))
-		elapsed := time.Since(start)
 
-		success := true
+		err = func() error {
+			tx, err := db.Begin()
+
+			if err != nil {
+				return err
+			}
+
+			_, err = tx.Exec(string(script))
+
+			if err != nil {
+				return err
+			}
+
+			err = tx.Commit()
+
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+			return nil
+		}()
+
+		elapsed := time.Since(start)
 
 		if err != nil {
 			success = false
@@ -136,7 +161,7 @@ func (m MySQLDialect) MigrateSQL() string {
 
 // LastVersionSQL returns a new SQL fo get the last version in the database
 func (m MySQLDialect) LastVersionSQL() string {
-	return "SELECT version FROM darwin_migrations ORDER BY version DESC"
+	return "SELECT version FROM darwin_migrations ORDER BY version DESC LIMIT 1;"
 }
 
 // ByVersion implements the Sort interface sorting bt Version

@@ -16,8 +16,11 @@ import (
 */
 
 // Validar Version
-// Não pode ter duas migrations com o mesmo Version
+// Não pode ter duas migrations com o mesmo Version, erro duplicada
+// Unknown Version, caso Version is nil
 // Version is a float
+// Verbose mode - Print in StdOut or Writer every uteraction
+// ILegal migrations < 0
 // Valid version numbers are 1, 2, 3, 3.1 etc
 // migrations are sorted by this version number
 // Build a Migration plan
