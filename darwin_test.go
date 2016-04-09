@@ -2,6 +2,7 @@ package darwin
 
 import (
 	"database/sql/driver"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -45,9 +46,17 @@ func TestMigrate(t *testing.T) {
 }
 
 func escapeQuery(s string) string {
-	s1 := strings.Replace(s, ")", "\\)", -1)
-	s1 = strings.Replace(s1, "(", "\\(", -1)
-	s1 = strings.Replace(s1, "?", "\\?", -1)
+	s1 := strings.NewReplacer(
+		")", "\\)",
+		"(", "\\(",
+		"?", "\\?",
+		"\n", " ",
+		"\r", " ",
+		"\t", " ",
+	).Replace(s)
+
+	re := regexp.MustCompile("\\s+")
+	s1 = strings.TrimSpace(re.ReplaceAllString(s1, " "))
 	return s1
 }
 
