@@ -1,91 +1,345 @@
 package darwin
 
 import (
-	"database/sql/driver"
+	"errors"
 	"fmt"
-	"regexp"
-	"strings"
+	"sort"
 	"testing"
 	"time"
-
-	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
-func TestMigrate(t *testing.T) {
-	db, mock, err := sqlmock.New()
+type dummyDriver struct {
+	CreateError bool
+	InsertError bool
+	AllError    bool
+	ExecError   bool
+	records     []MigrationRecord
+}
 
-	if err != nil {
-		t.Errorf("sqlmock.New().error != nil, wants nil")
+func (d *dummyDriver) Create() error {
+	if d.CreateError {
+		return errors.New("Error")
+	}
+	return nil
+}
+func (d *dummyDriver) Insert(m MigrationRecord) error {
+	if d.InsertError {
+		return errors.New("Error")
 	}
 
-	defer db.Close()
-
-	dialect := MySQLDialect{}
-
-	mock.ExpectExec(escapeQuery(dialect.CreateTableSQL())).WillReturnResult(sqlmock.NewResult(0, 0))
-
-	query := "CREATE TABLE people (id INT AUTO_INCREMENT NOT NULL, PRIMARY KEY (id));"
-	migration := Migration{
-		Version:     1.0,
-		Description: "Creating table people",
-		Script:      strings.NewReader(query),
+	d.records = append(d.records, m)
+	return nil
+}
+func (d *dummyDriver) All() ([]MigrationRecord, error) {
+	if d.AllError {
+		return []MigrationRecord{}, errors.New("Error")
 	}
 
-	mock.ExpectBegin()
-	mock.ExpectExec(escapeQuery(query)).WillReturnResult(sqlmock.NewResult(1, 1))
-	mock.ExpectCommit()
+	return d.records, nil
+}
+func (d *dummyDriver) Exec(string) (time.Duration, error) {
+	if d.ExecError {
+		return time.Millisecond * 1, errors.New("Error")
+	}
 
-	migrations := []Migration{migration}
+	return time.Millisecond * 1, nil
+}
 
-	mock.ExpectExec(escapeQuery(dialect.MigrateSQL())).WithArgs(
-		1.0, "Creating table people", "7ebca1c6f05333a728a8db4629e8d543",
-		&anyRFC3339{}, sqlmock.AnyArg(), true).WillReturnResult(sqlmock.NewResult(1, 1))
+func Test_DuplicateMigrationVersionError_Error(t *testing.T) {
+	err := DuplicateMigrationVersionError{Version: 1}
 
-	Migrate(db, dialect, migrations)
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("there were unfulfilled expections: %s", err)
+	if err.Error() != fmt.Sprintf("Multiple migrations have the version number %f.", 1.0) {
+		t.Error("Must inform the version of the duplicated migration")
 	}
 }
 
-func escapeQuery(s string) string {
-	s1 := strings.NewReplacer(
-		")", "\\)",
-		"(", "\\(",
-		"?", "\\?",
-		"\n", " ",
-		"\r", " ",
-		"\t", " ",
-	).Replace(s)
+func Test_IllegalMigrationVersionError_Error(t *testing.T) {
+	err := IllegalMigrationVersionError{Version: 1}
 
-	re := regexp.MustCompile("\\s+")
-	s1 = strings.TrimSpace(re.ReplaceAllString(s1, " "))
-	return s1
+	if err.Error() != fmt.Sprintf("Illegal migration version number %f.", 1.0) {
+		t.Error("Must inform the version of the invalid migration")
+	}
 }
 
-type anyRFC3339 struct {
-	value interface{}
+func Test_RemovedMigrationError_Error(t *testing.T) {
+	err := RemovedMigrationError{Version: 1}
+
+	if err.Error() != fmt.Sprintf("Migration %f was removed", 1.0) {
+		t.Error("Must inform when a migration is removed from the list")
+	}
 }
 
-func (a *anyRFC3339) String() string {
-	return fmt.Sprintf("%v", a.value)
+func Test_InvalidChecksumError_Error(t *testing.T) {
+	err := InvalidChecksumError{Version: 1}
+
+	if err.Error() != fmt.Sprintf("Invalid cheksum for migration %f", 1.0) {
+		t.Error("Must inform when a migration have an invalid checksum")
+	}
 }
 
-// Match satisfies sqlmock.Argument interface
-func (a *anyRFC3339) Match(v driver.Value) bool {
-	a.value = v
-
-	_, ok := v.(string)
-
-	if !ok {
-		return false
+func Test_Validate_invalid_version(t *testing.T) {
+	migrations := []Migration{
+		{
+			Version:     -1,
+			Description: "Hello World",
+			Script:      "does not matter!",
+		},
 	}
 
-	_, err := time.Parse(time.RFC3339, v.(string))
+	err := Validate(&dummyDriver{}, migrations)
 
-	if err != nil {
-		return false
+	if err.(IllegalMigrationVersionError).Version != -1 {
+		t.Errorf("Must not accept migrations with invalid version numbers")
+	}
+}
+
+func Test_Validate_duplicated_version(t *testing.T) {
+	migrations := []Migration{
+		{
+			Version:     1,
+			Description: "Hello World",
+			Script:      "does not matter!",
+		},
+		{
+			Version:     1,
+			Description: "Hello World",
+			Script:      "does not matter!",
+		},
 	}
 
-	return true
+	err := Validate(&dummyDriver{}, migrations)
+
+	if err.(DuplicateMigrationVersionError).Version != 1 {
+		t.Errorf("Must not accept migrations with duplicated version numbers")
+	}
+}
+
+func Test_Validate_removed_migration(t *testing.T) {
+	// Other fields are not necessary for testing...
+	records := []MigrationRecord{
+		{
+			Version: 1.0,
+		},
+		{
+			Version: 1.1,
+		},
+	}
+
+	migrations := []Migration{
+		{
+			Version:     1.1,
+			Description: "Hello World",
+			Script:      "does not matter!",
+		},
+	}
+
+	// Running with struct
+	d := New(&dummyDriver{records: records}, migrations, nil)
+	err := d.Validate()
+
+	if err.(RemovedMigrationError).Version != 1 {
+		t.Errorf("Must not validate when some migration was removed from the migration list")
+	}
+}
+
+func Test_Validate_invalid_checksum(t *testing.T) {
+	// Other fields are not necessary for testing...
+	records := []MigrationRecord{
+		{
+			Version:  1.0,
+			Checksum: "3310d0ff858faac79e854454c9e403db",
+		},
+	}
+
+	migrations := []Migration{
+		{
+			Version:     1.0,
+			Description: "Hello World",
+			Script:      "does not matter!",
+		},
+	}
+
+	err := Validate(&dummyDriver{records: records}, migrations)
+
+	if err.(InvalidChecksumError).Version != 1 {
+		t.Errorf("Must not validate when some migration differ from the migration applied in the database")
+	}
+}
+
+func Test_Migrate_migrate_all(t *testing.T) {
+	migrations := []Migration{
+		{
+			Version:     1,
+			Description: "First Migration",
+			Script:      "does not matter!",
+		},
+		{
+			Version:     2,
+			Description: "Second Migration",
+			Script:      "does not matter!",
+		},
+	}
+
+	driver := &dummyDriver{records: []MigrationRecord{}}
+
+	infoChan := make(chan MigrationInfo, 2)
+
+	Migrate(driver, migrations, infoChan)
+
+	all, _ := driver.All()
+
+	if len(all) != 2 {
+		t.Errorf("Must not apply all migrations")
+	}
+
+	info := <-infoChan
+
+	if info.Migration.Version != 1 {
+		t.Errorf("Must send a message for each migration applied")
+	}
+
+	info = <-infoChan
+
+	if info.Migration.Version != 2 {
+		t.Errorf("Must send a message for each migration applied")
+	}
+}
+
+func Test_Migrate_migrate_partial(t *testing.T) {
+	applied := []MigrationRecord{
+		{
+			Version:  1,
+			Checksum: "3310d0ff858faac79e854454c9e403da",
+		},
+	}
+
+	migrations := []Migration{
+		{
+			Version:     1,
+			Description: "First Migration",
+			Script:      "does not matter!",
+		},
+		{
+			Version:     2,
+			Description: "Second Migration",
+			Script:      "does not matter!",
+		},
+		{
+			Version:     3,
+			Description: "Third Migration",
+			Script:      "does not matter!",
+		},
+	}
+
+	driver := &dummyDriver{records: applied}
+
+	all, _ := driver.All()
+
+	if len(all) != 1 {
+		t.Errorf("Should have 1 migration already applied")
+	}
+
+	// Running with struct
+	d := New(driver, migrations, nil)
+	d.Migrate()
+
+	all, _ = driver.All()
+
+	if len(all) != 3 {
+		t.Errorf("Must not apply all migrations")
+	}
+}
+
+func Test_Migrate_migrate_error(t *testing.T) {
+	driver := &dummyDriver{CreateError: true}
+	migrations := []Migration{}
+
+	err := Migrate(driver, migrations, nil)
+
+	if err == nil {
+		t.Error("Must emit error")
+	}
+}
+
+func Test_Migrate_with_error_in_Validate(t *testing.T) {
+	driver := &dummyDriver{AllError: true}
+	migrations := []Migration{}
+
+	err := Migrate(driver, migrations, nil)
+
+	if err == nil {
+		t.Error("Must emit error")
+	}
+}
+
+func Test_Migrate_with_error_in_driver_insert(t *testing.T) {
+	driver := &dummyDriver{InsertError: true}
+	migrations := []Migration{
+		{
+			Version:     1,
+			Description: "First Migration",
+			Script:      "does not matter!",
+		},
+	}
+
+	err := Migrate(driver, migrations, nil)
+
+	if err == nil {
+		t.Error("Must emit error")
+	}
+}
+
+func Test_Migrate_with_error_in_driver_exec(t *testing.T) {
+	driver := &dummyDriver{ExecError: true}
+	migrations := []Migration{
+		{
+			Version:     1,
+			Description: "First Migration",
+			Script:      "does not matter!",
+		},
+	}
+
+	Migrate(driver, migrations, nil)
+
+	all, _ := driver.All()
+
+	if len(all) != 1 {
+		t.Errorf("Must not apply all migrations")
+	}
+
+	if all[0].Success != false {
+		t.Errorf("all[0].Success == %t, wants false", all[0].Success)
+	}
+}
+
+func Test_planMigration_error_driver(t *testing.T) {
+	driver := &dummyDriver{AllError: true}
+	migrations := []Migration{}
+
+	_, err := planMigration(driver, migrations)
+
+	if err == nil {
+		t.Error("Must emit error")
+	}
+}
+
+func Test_byMigrationVersion(t *testing.T) {
+	unordered := []Migration{
+		{
+			Version:     3,
+			Description: "Hello World",
+			Script:      "does not matter!",
+		},
+		{
+			Version:     1,
+			Description: "Hello World",
+			Script:      "does not matter!",
+		},
+	}
+
+	sort.Sort(byMigrationVersion(unordered))
+
+	if unordered[0].Version != 1.0 {
+		t.Errorf("Must order by version number")
+	}
 }
