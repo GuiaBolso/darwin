@@ -63,7 +63,7 @@ func Test_GenericDriver_Insert(t *testing.T) {
 			record.Version,
 			record.Description,
 			record.Checksum,
-			record.AppliedAt.Format(d.datetimeLayout),
+			record.AppliedAt.Unix(),
 			record.ExecutionTime,
 			record.Success,
 		).
@@ -95,7 +95,7 @@ func Test_GenericDriver_All_success(t *testing.T) {
 		"version", "description", "checksum", "applied_at", "execution_time", "success",
 	}).AddRow(
 		1, "Description", "7ebca1c6f05333a728a8db4629e8d543",
-		time.Now().Format(d.datetimeLayout),
+		time.Now().Unix(),
 		time.Millisecond*1, true,
 	)
 
@@ -128,41 +128,6 @@ func Test_GenericDriver_All_error(t *testing.T) {
 
 	mock.ExpectQuery(escapeQuery(dialect.AllSQL())).
 		WillReturnError(errors.New("Generic error"))
-
-	migrations, _ := d.All()
-
-	if len(migrations) != 0 {
-		t.Errorf("len(migrations) == %d, wants 0", len(migrations))
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("there were unfulfilled expections: %s", err)
-	}
-}
-
-func Test_GenericDriver_All_error_datetime_parse(t *testing.T) {
-	db, mock, err := sqlmock.New()
-
-	if err != nil {
-		t.Errorf("sqlmock.New().error != nil, wants nil")
-	}
-
-	defer db.Close()
-
-	dialect := MySQLDialect{}
-
-	d := NewGenericDriver(db, dialect)
-
-	rows := sqlmock.NewRows([]string{
-		"version", "description", "checksum", "applied_at", "execution_time", "success",
-	}).AddRow(
-		1, "Description", "7ebca1c6f05333a728a8db4629e8d543",
-		"error parsing date",
-		time.Millisecond*1, true,
-	)
-
-	mock.ExpectQuery(escapeQuery(dialect.AllSQL())).
-		WillReturnRows(rows)
 
 	migrations, _ := d.All()
 
