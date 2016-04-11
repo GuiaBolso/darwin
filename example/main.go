@@ -31,6 +31,11 @@ var (
 			Description: "Creating table world",
 			Script:      "CREATE TABLE world (id INT);",
 		},
+		// {
+		// 	Version:     4,
+		// 	Description: "Creating table ok",
+		// 	Script:      "CREATE TABLE ok (id INT);",
+		// },
 	}
 )
 
@@ -49,6 +54,5 @@ func main() {
 
 	if err != nil {
 		log.Println(err)
-		return
 	}
 }
