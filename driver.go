@@ -26,14 +26,13 @@ type Driver interface {
 
 // GenericDriver is the default Driver, it can be configured to any database.
 type GenericDriver struct {
-	db             *sql.DB
-	datetimeLayout string
-	dialect        Dialect
+	db      *sql.DB
+	dialect Dialect
 }
 
 // NewGenericDriver creates a new GenericDriver configured with db and dialect
 func NewGenericDriver(db *sql.DB, dialect Dialect) *GenericDriver {
-	return &GenericDriver{db: db, datetimeLayout: "2006-01-02 15:04:05", dialect: dialect}
+	return &GenericDriver{db: db, dialect: dialect}
 }
 
 // Create create the table darwin_migrations if necessary
@@ -54,7 +53,7 @@ func (m *GenericDriver) Insert(e MigrationRecord) error {
 			e.Version,
 			e.Description,
 			e.Checksum,
-			e.AppliedAt.Format(m.datetimeLayout),
+			e.AppliedAt.Unix(),
 			e.ExecutionTime,
 			e.Success,
 		)
@@ -76,34 +75,28 @@ func (m *GenericDriver) All() ([]MigrationRecord, error) {
 
 	for rows.Next() {
 		var (
-			version         float64
-			description     string
-			checksum        string
-			appliedAtString string
-			executionTime   float64
-			success         bool
+			version       float64
+			description   string
+			checksum      string
+			appliedAt     int64
+			executionTime float64
+			success       bool
 		)
 
 		rows.Scan(
 			&version,
 			&description,
 			&checksum,
-			&appliedAtString,
+			&appliedAt,
 			&executionTime,
 			&success,
 		)
-
-		appliedAt, err := time.Parse(m.datetimeLayout, appliedAtString)
-
-		if err != nil {
-			return []MigrationRecord{}, err
-		}
 
 		entry := MigrationRecord{
 			Version:       version,
 			Description:   description,
 			Checksum:      checksum,
-			AppliedAt:     appliedAt,
+			AppliedAt:     time.Unix(appliedAt, 0),
 			ExecutionTime: time.Duration(executionTime),
 			Success:       success,
 		}
