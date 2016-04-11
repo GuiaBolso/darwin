@@ -8,34 +8,22 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// https://flywaydb.org/documentation/maven/validate
 var (
 	migrations = []darwin.Migration{
 		{
-			Version:     1.0,
-			Description: "Creating table people",
-			Script:      "CREATE TABLE people (id INT);",
-		},
-		{
-			Version:     1.1,
-			Description: "Creating table animals",
-			Script:      "CREATE TABLE animals (id INT);",
+			Version:     1,
+			Description: "Creating table posts",
+			Script: `CREATE TABLE posts (
+						id INT 		auto_increment, 
+						title 		VARCHAR(255),
+						PRIMARY KEY (id)
+					 ) ENGINE=InnoDB CHARACTER SET=utf8;`,
 		},
 		{
 			Version:     2,
-			Description: "Creating table hello",
-			Script:      "CREATE TABLE hello (id INT);",
+			Description: "Adding column body",
+			Script:      "ALTER TABLE posts ADD body TEXT AFTER title;",
 		},
-		{
-			Version:     3,
-			Description: "Creating table world",
-			Script:      "CREATE TABLE world (id INT);",
-		},
-		// {
-		// 	Version:     4,
-		// 	Description: "Creating table ok",
-		// 	Script:      "CREATE TABLE ok (id INT);",
-		// },
 	}
 )
 
@@ -43,8 +31,7 @@ func main() {
 	database, err := sql.Open("mysql", "root:@/darwin")
 
 	if err != nil {
-		log.Println(err)
-		return
+		log.Fatal(err)
 	}
 
 	driver := darwin.NewGenericDriver(database, darwin.MySQLDialect{})
