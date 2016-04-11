@@ -4,8 +4,12 @@ import (
 	"crypto/md5"
 	"fmt"
 	"sort"
+	"sync"
 	"time"
 )
+
+// A global mutex
+var mutex = &sync.Mutex{}
 
 // Migration represents a database migrations.
 type Migration struct {
@@ -23,7 +27,6 @@ func (m Migration) Checksum() string {
 // the migration being applied.
 type MigrationInfo struct {
 	Migration Migration
-	Success   bool
 }
 
 // Darwin is a helper struct to access the Validate and migratin functions
@@ -117,8 +120,11 @@ func Validate(d Driver, migrations []Migration) error {
 	return nil
 }
 
-// Migrate executes the missing migrations in database
+// Migrate executes the missing migrations in database.
 func Migrate(d Driver, migrations []Migration, infoChan chan MigrationInfo) error {
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	err := d.Create()
 
 	if err != nil {
@@ -138,12 +144,10 @@ func Migrate(d Driver, migrations []Migration, infoChan chan MigrationInfo) erro
 	}
 
 	for _, migration := range planned {
-		success := true
-
 		dur, err := d.Exec(migration.Script)
 
 		if err != nil {
-			success = false
+			return err
 		}
 
 		// Send the migration over the infoChan
@@ -151,7 +155,6 @@ func Migrate(d Driver, migrations []Migration, infoChan chan MigrationInfo) erro
 		if infoChan != nil {
 			infoChan <- MigrationInfo{
 				Migration: migration,
-				Success:   success,
 			}
 		}
 
@@ -161,7 +164,6 @@ func Migrate(d Driver, migrations []Migration, infoChan chan MigrationInfo) erro
 			Checksum:      migration.Checksum(),
 			AppliedAt:     time.Now(),
 			ExecutionTime: dur,
-			Success:       success,
 		})
 
 		if err != nil {
@@ -169,7 +171,7 @@ func Migrate(d Driver, migrations []Migration, infoChan chan MigrationInfo) erro
 		}
 	}
 
-	return err
+	return nil
 }
 
 func wasRemovedMigration(applied []MigrationRecord, migrations []Migration) (float64, bool) {
@@ -250,7 +252,7 @@ func planMigration(d Driver, migrations []Migration) ([]Migration, error) {
 	planned := []Migration{}
 
 	// Make sure the order is correct
-	// Do not trust in the driver.
+	// Do not trust the driver.
 	sort.Sort(sort.Reverse(byMigrationRecordVersion(records)))
 	last := records[0]
 

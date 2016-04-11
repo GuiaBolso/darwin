@@ -303,12 +303,8 @@ func Test_Migrate_with_error_in_driver_exec(t *testing.T) {
 
 	all, _ := driver.All()
 
-	if len(all) != 1 {
+	if len(all) != 0 {
 		t.Errorf("Must not apply all migrations")
-	}
-
-	if all[0].Success != false {
-		t.Errorf("all[0].Success == %t, wants false", all[0].Success)
 	}
 }
 

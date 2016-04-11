@@ -13,7 +13,6 @@ type MigrationRecord struct {
 	Checksum      string
 	AppliedAt     time.Time
 	ExecutionTime time.Duration
-	Success       bool
 }
 
 // Driver a database driver abstraction
@@ -55,7 +54,6 @@ func (m *GenericDriver) Insert(e MigrationRecord) error {
 			e.Checksum,
 			e.AppliedAt.Unix(),
 			e.ExecutionTime,
-			e.Success,
 		)
 		return err
 	})
@@ -80,7 +78,6 @@ func (m *GenericDriver) All() ([]MigrationRecord, error) {
 			checksum      string
 			appliedAt     int64
 			executionTime float64
-			success       bool
 		)
 
 		rows.Scan(
@@ -89,7 +86,6 @@ func (m *GenericDriver) All() ([]MigrationRecord, error) {
 			&checksum,
 			&appliedAt,
 			&executionTime,
-			&success,
 		)
 
 		entry := MigrationRecord{
@@ -98,7 +94,6 @@ func (m *GenericDriver) All() ([]MigrationRecord, error) {
 			Checksum:      checksum,
 			AppliedAt:     time.Unix(appliedAt, 0),
 			ExecutionTime: time.Duration(executionTime),
-			Success:       success,
 		}
 
 		entries = append(entries, entry)

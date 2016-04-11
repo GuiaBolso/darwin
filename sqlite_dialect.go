@@ -13,7 +13,6 @@ func (s SqliteDialect) CreateTableSQL() string {
                     checksum       TEXT     NOT NULL,
                     applied_at     DATETIME NOT NULL,
                     execution_time FLOAT    NOT NULL,
-                    success        BOOLEAN  NOT NULL,
                     UNIQUE         (version)
                 );`
 }
@@ -26,10 +25,9 @@ func (s SqliteDialect) InsertSQL() string {
                     description,
                     checksum,
                     applied_at,
-                    execution_time,
-                    success
+                    execution_time
                 )
-            VALUES (?, ?, ?, ?, ?, ?);`
+            VALUES (?, ?, ?, ?, ?);`
 }
 
 // AllSQL returns a SQL to get all entries in the table
@@ -39,8 +37,7 @@ func (s SqliteDialect) AllSQL() string {
                 description,
                 checksum,
                 applied_at,
-                execution_time,
-                success
+                execution_time
             FROM 
                 darwin_migrations
             ORDER BY version ASC;`

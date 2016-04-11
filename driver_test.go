@@ -50,7 +50,6 @@ func Test_GenericDriver_Insert(t *testing.T) {
 		Checksum:      "7ebca1c6f05333a728a8db4629e8d543",
 		AppliedAt:     time.Now(),
 		ExecutionTime: time.Millisecond * 1,
-		Success:       true,
 	}
 
 	dialect := MySQLDialect{}
@@ -65,7 +64,6 @@ func Test_GenericDriver_Insert(t *testing.T) {
 			record.Checksum,
 			record.AppliedAt.Unix(),
 			record.ExecutionTime,
-			record.Success,
 		).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
@@ -200,7 +198,6 @@ func Test_byMigrationRecordVersion(t *testing.T) {
 			Checksum:      "7ebca1c6f05333a728a8db4629e8d543",
 			AppliedAt:     time.Now(),
 			ExecutionTime: time.Millisecond * 1,
-			Success:       true,
 		},
 		{
 			Version:       1.0,
@@ -208,7 +205,6 @@ func Test_byMigrationRecordVersion(t *testing.T) {
 			Checksum:      "7ebca1c6f05333a728a8db4629e8d543",
 			AppliedAt:     time.Now(),
 			ExecutionTime: time.Millisecond * 1,
-			Success:       true,
 		},
 	}
 

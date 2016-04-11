@@ -13,7 +13,6 @@ func (m MySQLDialect) CreateTableSQL() string {
                     checksum       VARCHAR(32)  NOT NULL,
                     applied_at     INT          NOT NULL,
                     execution_time FLOAT        NOT NULL,
-                    success        BOOL         NOT NULL,
                     UNIQUE         (version),
                     PRIMARY KEY    (id)
                 ) ENGINE=InnoDB CHARACTER SET=utf8;`
@@ -27,10 +26,9 @@ func (m MySQLDialect) InsertSQL() string {
                     description,
                     checksum,
                     applied_at,
-                    execution_time,
-                    success
+                    execution_time
                 )
-            VALUES (?, ?, ?, ?, ?, ?);`
+            VALUES (?, ?, ?, ?, ?);`
 }
 
 // AllSQL returns a SQL to get all entries in the table
@@ -40,8 +38,7 @@ func (m MySQLDialect) AllSQL() string {
                 description,
                 checksum,
                 applied_at,
-                execution_time,
-                success
+                execution_time
             FROM 
                 darwin_migrations
             ORDER BY version ASC;`
