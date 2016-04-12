@@ -25,19 +25,19 @@ type Driver interface {
 
 // GenericDriver is the default Driver, it can be configured to any database.
 type GenericDriver struct {
-	db      *sql.DB
-	dialect Dialect
+	DB      *sql.DB
+	Dialect Dialect
 }
 
 // NewGenericDriver creates a new GenericDriver configured with db and dialect
 func NewGenericDriver(db *sql.DB, dialect Dialect) *GenericDriver {
-	return &GenericDriver{db: db, dialect: dialect}
+	return &GenericDriver{DB: db, Dialect: dialect}
 }
 
 // Create create the table darwin_migrations if necessary
 func (m *GenericDriver) Create() error {
-	err := transaction(m.db, func(tx *sql.Tx) error {
-		_, err := tx.Exec(m.dialect.CreateTableSQL())
+	err := transaction(m.DB, func(tx *sql.Tx) error {
+		_, err := tx.Exec(m.Dialect.CreateTableSQL())
 		return err
 	})
 
@@ -47,8 +47,8 @@ func (m *GenericDriver) Create() error {
 // Insert insert a migration entry into database
 func (m *GenericDriver) Insert(e MigrationRecord) error {
 
-	err := transaction(m.db, func(tx *sql.Tx) error {
-		_, err := tx.Exec(m.dialect.InsertSQL(),
+	err := transaction(m.DB, func(tx *sql.Tx) error {
+		_, err := tx.Exec(m.Dialect.InsertSQL(),
 			e.Version,
 			e.Description,
 			e.Checksum,
@@ -65,7 +65,7 @@ func (m *GenericDriver) Insert(e MigrationRecord) error {
 func (m *GenericDriver) All() ([]MigrationRecord, error) {
 	entries := []MigrationRecord{}
 
-	rows, err := m.db.Query(m.dialect.AllSQL())
+	rows, err := m.DB.Query(m.Dialect.AllSQL())
 
 	if err != nil {
 		return []MigrationRecord{}, err
@@ -108,7 +108,7 @@ func (m *GenericDriver) All() ([]MigrationRecord, error) {
 func (m *GenericDriver) Exec(script string) (time.Duration, error) {
 	start := time.Now()
 
-	err := transaction(m.db, func(tx *sql.Tx) error {
+	err := transaction(m.DB, func(tx *sql.Tx) error {
 		_, err := tx.Exec(script)
 		return err
 	})
