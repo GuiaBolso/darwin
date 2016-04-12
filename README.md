@@ -56,6 +56,25 @@ func main() {
 }
 ```
 
+# Questions
+
+Q. Why there is not a command line utility?
+
+A. The purpose of this library is just be a library.
+
+Q. How can I read migrations from file system?
+
+A. You can read with the standard library and build the migration list.
+
+Q. Why does not exists downgrade migrations?
+
+A. Please read https://flywaydb.org/documentation/faq#downgrade
+
+Q. Does Darwin perform a roll back if a migration fails?
+
+A. Please read https://flywaydb.org/documentation/faq#rollback
+
+
 # LICENSE
 
 The MIT License (MIT)
