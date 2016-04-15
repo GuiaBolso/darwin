@@ -286,16 +286,9 @@ func Test_transaction_panic_with_message(t *testing.T) {
 }
 
 func escapeQuery(s string) string {
-	s1 := strings.NewReplacer(
-		")", "\\)",
-		"(", "\\(",
-		"?", "\\?",
-		"\n", " ",
-		"\r", " ",
-		"\t", " ",
-	).Replace(s)
-
 	re := regexp.MustCompile("\\s+")
+
+	s1 := regexp.QuoteMeta(s)
 	s1 = strings.TrimSpace(re.ReplaceAllString(s1, " "))
 	return s1
 }
