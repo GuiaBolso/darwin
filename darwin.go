@@ -29,14 +29,14 @@ type MigrationInfo struct {
 	Migration Migration
 }
 
-// Darwin is a helper struct to access the Validate and migratin functions
+// Darwin is a helper struct to access the Validate and migration functions
 type Darwin struct {
 	driver     Driver
 	migrations []Migration
 	infoChan   chan MigrationInfo
 }
 
-// Validate if the database migratins are applied and consistent
+// Validate if the database migrations are applied and consistent
 func (d Darwin) Validate() error {
 	return Validate(d.driver, d.migrations)
 }
@@ -91,7 +91,7 @@ func (i InvalidChecksumError) Error() string {
 	return fmt.Sprintf("Invalid cheksum for migration %f", i.Version)
 }
 
-// Validate if the database migratins are applied and consistent
+// Validate if the database migrations are applied and consistent
 func Validate(d Driver, migrations []Migration) error {
 	sort.Sort(byMigrationVersion(migrations))
 
