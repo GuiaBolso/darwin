@@ -66,6 +66,12 @@ Q. How can I read migrations from file system?
 
 A. You can read with the standard library and build the migration list.
 
+Q. Can I put more than one statement in the same Script migration?
+
+A. I do not recommend. Put one database change per migration, if some migration fail, you exactly what statement caused the error. Also only postgres correctly handle rollback in DDL transactions. 
+
+To be less annoying you can organize your migrations like? 1.0, 1.1, 1.2 and so on.
+
 Q. Why does not exists downgrade migrations?
 
 A. Please read https://flywaydb.org/documentation/faq#downgrade
@@ -73,6 +79,10 @@ A. Please read https://flywaydb.org/documentation/faq#downgrade
 Q. Does Darwin perform a roll back if a migration fails?
 
 A. Please read https://flywaydb.org/documentation/faq#rollback
+
+Q. What is the best strategy for dealing with hot fixes?
+
+A. Plese read https://flywaydb.org/documentation/faq#hot-fixes
 
 
 # LICENSE
