@@ -29,8 +29,17 @@ type GenericDriver struct {
 	Dialect Dialect
 }
 
-// NewGenericDriver creates a new GenericDriver configured with db and dialect
+// NewGenericDriver creates a new GenericDriver configured with db and dialect.
+// Panic if db or dialect is nil
 func NewGenericDriver(db *sql.DB, dialect Dialect) *GenericDriver {
+	if db == nil {
+		panic("darwin: sql.DB is nil")
+	}
+
+	if dialect == nil {
+		panic("darwin: dialect is nil")
+	}
+
 	return &GenericDriver{DB: db, Dialect: dialect}
 }
 
@@ -117,8 +126,13 @@ func (m *GenericDriver) Exec(script string) (time.Duration, error) {
 }
 
 // transaction is a utility function to execute the SQL inside a transaction
+// Panic if db is nil
 // see: http://stackoverflow.com/a/23502629
 func transaction(db *sql.DB, f func(*sql.Tx) error) (err error) {
+	if db == nil {
+		panic("darwin: sql.DB is nil")
+	}
+
 	tx, err := db.Begin()
 
 	if err != nil {

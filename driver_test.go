@@ -12,6 +12,31 @@ import (
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
+func assertPanic(t *testing.T, f func()) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("The code did not panic")
+		}
+	}()
+	f()
+}
+
+func Test_NewGenericDriver_sql_nil(t *testing.T) {
+	assertPanic(t, func() {
+		NewGenericDriver(nil, MySQLDialect{})
+	})
+}
+
+func Test_NewGenericDriver_driver_nil(t *testing.T) {
+	db, _, _ := sqlmock.New()
+
+	defer db.Close()
+
+	assertPanic(t, func() {
+		NewGenericDriver(db, nil)
+	})
+}
+
 func Test_GenericDriver_Create(t *testing.T) {
 	db, mock, err := sqlmock.New()
 
@@ -213,6 +238,14 @@ func Test_byMigrationRecordVersion(t *testing.T) {
 	if unordered[0].Version != 1.0 {
 		t.Errorf("Must order by version number")
 	}
+}
+
+func Test_transaction_panic_sql_nil(t *testing.T) {
+	assertPanic(t, func() {
+		transaction(nil, func(tx *sql.Tx) error {
+			return nil
+		})
+	})
 }
 
 func Test_transaction_error_begin(t *testing.T) {
