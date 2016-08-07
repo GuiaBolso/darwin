@@ -1,6 +1,6 @@
-[![Build Status](https://travis-ci.org/dimiro1/darwin.svg?branch=master)](https://travis-ci.org/dimiro1/darwin)
-[![Go Report Card](https://goreportcard.com/badge/github.com/dimiro1/darwin)](https://goreportcard.com/report/github.com/dimiro1/darwin)
-[![GoDoc](https://godoc.org/github.com/dimiro1/darwin?status.svg)](https://godoc.org/github.com/dimiro1/darwin)
+[![Build Status](https://travis-ci.org/GuiaBolso/darwin.svg?branch=master)](https://travis-ci.org/GuiaBolso/darwin)
+[![Go Report Card](https://goreportcard.com/badge/github.com/GuiaBolso/darwin)](https://goreportcard.com/report/github.com/GuiaBolso/darwin)
+[![GoDoc](https://godoc.org/github.com/GuiaBolso/darwin?status.svg)](https://godoc.org/github.com/GuiaBolso/darwin)
 
 # Darwin
 
@@ -15,7 +15,7 @@ import (
 	"database/sql"
 	"log"
 
-	"github.com/dimiro1/darwin"
+	"github.com/GuiaBolso/darwin"
 	_ "github.com/go-sql-driver/mysql"
 )
 
