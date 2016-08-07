@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"log"
 
-	"github.com/dimiro1/darwin"
+	"github.com/GuiaBolso/darwin"
 	_ "github.com/go-sql-driver/mysql"
 )
 
