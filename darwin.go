@@ -8,6 +8,35 @@ import (
 	"time"
 )
 
+// Status is a migration status value
+type Status int
+
+const (
+	// Ignored means that the migrations was not appied to the database
+	Ignored Status = iota
+	// Applied means that the migrations was successfully applied to the database
+	Applied
+	// Pending means that the migrations is a new migration and it is waiting to be applied to the database
+	Pending
+	// Error means that the migration could not be applied to the database
+	Error
+)
+
+func (s Status) String() string {
+	switch s {
+	case Ignored:
+		return "IGNORED"
+	case Applied:
+		return "APPLIED"
+	case Pending:
+		return "PENDING"
+	case Error:
+		return "ERROR"
+	default:
+		return "INVALID"
+	}
+}
+
 // A global mutex
 var mutex = &sync.Mutex{}
 
@@ -26,6 +55,8 @@ func (m Migration) Checksum() string {
 // MigrationInfo is a struct used in the infoChan to inform clients about
 // the migration being applied.
 type MigrationInfo struct {
+	Status    Status
+	Error     error
 	Migration Migration
 }
 
@@ -44,6 +75,11 @@ func (d Darwin) Validate() error {
 // Migrate executes the missing migrations in database
 func (d Darwin) Migrate() error {
 	return Migrate(d.driver, d.migrations, d.infoChan)
+}
+
+// Info returns the status of all migrations
+func (d Darwin) Info() ([]MigrationInfo, error) {
+	return Info(d.driver, d.migrations)
 }
 
 // New returns a new Darwin struct
@@ -120,6 +156,52 @@ func Validate(d Driver, migrations []Migration) error {
 	return nil
 }
 
+// Info returns the status of all migrations
+func Info(d Driver, migrations []Migration) ([]MigrationInfo, error) {
+	info := []MigrationInfo{}
+	records, err := d.All()
+
+	if err != nil {
+		return info, err
+	}
+
+	sort.Sort(sort.Reverse(byMigrationRecordVersion(records)))
+
+	for _, migration := range migrations {
+		info = append(info, MigrationInfo{
+			Status:    getStatus(records, migration),
+			Error:     nil,
+			Migration: migration,
+		})
+	}
+
+	return info, nil
+}
+
+func getStatus(inDatabase []MigrationRecord, migration Migration) Status {
+	last := inDatabase[0]
+
+	// Check Pending
+	if migration.Version > last.Version {
+		return Pending
+	}
+
+	// Check Ignored
+	found := false
+
+	for _, record := range inDatabase {
+		if record.Version == migration.Version {
+			found = true
+		}
+	}
+
+	if !found {
+		return Ignored
+	}
+
+	return Applied
+}
+
 // Migrate executes the missing migrations in database.
 func Migrate(d Driver, migrations []Migration, infoChan chan MigrationInfo) error {
 	mutex.Lock()
@@ -147,15 +229,8 @@ func Migrate(d Driver, migrations []Migration, infoChan chan MigrationInfo) erro
 		dur, err := d.Exec(migration.Script)
 
 		if err != nil {
+			notify(err, migration, infoChan)
 			return err
-		}
-
-		// Send the migration over the infoChan
-		// The listener could print in the Stdout a message about the applied migration
-		if infoChan != nil {
-			infoChan <- MigrationInfo{
-				Migration: migration,
-			}
 		}
 
 		err = d.Insert(MigrationRecord{
@@ -166,12 +241,36 @@ func Migrate(d Driver, migrations []Migration, infoChan chan MigrationInfo) erro
 			ExecutionTime: dur,
 		})
 
+		notify(err, migration, infoChan)
+
 		if err != nil {
 			return err
 		}
+
 	}
 
 	return nil
+}
+
+func notify(err error, migration Migration, infoChan chan MigrationInfo) {
+	status := Pending
+
+	if err != nil {
+		status = Error
+	} else {
+		status = Applied
+	}
+
+	// Send the migration over the infoChan
+	// The listener could print in the Stdout a message about the applied migration
+	if infoChan != nil {
+		infoChan <- MigrationInfo{
+			Status:    status,
+			Error:     err,
+			Migration: migration,
+		}
+	}
+
 }
 
 func wasRemovedMigration(applied []MigrationRecord, migrations []Migration) (float64, bool) {

@@ -2,10 +2,12 @@ package main
 
 import (
 	"database/sql"
+	"flag"
+	"fmt"
 	"log"
 
 	"github.com/GuiaBolso/darwin"
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var (
@@ -14,10 +16,9 @@ var (
 			Version:     1,
 			Description: "Creating table posts",
 			Script: `CREATE TABLE posts (
-						id INT 		auto_increment, 
-						title 		VARCHAR(255),
-						PRIMARY KEY (id)
-					 ) ENGINE=InnoDB CHARACTER SET=utf8;`,
+						id INTEGER PRIMARY KEY, 
+						title 		TEXT
+					 );;`,
 		},
 		{
 			Version:     2,
@@ -28,18 +29,31 @@ var (
 )
 
 func main() {
-	database, err := sql.Open("mysql", "root:@/darwin")
+	var info bool
+
+	flag.BoolVar(&info, "info", false, "If you want get info from database")
+	flag.Parse()
+
+	database, err := sql.Open("sqlite3", "database.sqlite3")
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	driver := darwin.NewGenericDriver(database, darwin.MySQLDialect{})
+	driver := darwin.NewGenericDriver(database, darwin.SqliteDialect{})
 
 	d := darwin.New(driver, migrations, nil)
-	err = d.Migrate()
 
-	if err != nil {
-		log.Println(err)
+	if info {
+		infos, _ := d.Info()
+		for _, info := range infos {
+			fmt.Printf("%.1f %s %s\n", info.Migration.Version, info.Status, info.Migration.Description)
+		}
+	} else {
+		err = d.Migrate()
+
+		if err != nil {
+			log.Println(err)
+		}
 	}
 }

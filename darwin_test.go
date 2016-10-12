@@ -22,6 +22,7 @@ func (d *dummyDriver) Create() error {
 	}
 	return nil
 }
+
 func (d *dummyDriver) Insert(m MigrationRecord) error {
 	if d.InsertError {
 		return errors.New("Error")
@@ -30,6 +31,7 @@ func (d *dummyDriver) Insert(m MigrationRecord) error {
 	d.records = append(d.records, m)
 	return nil
 }
+
 func (d *dummyDriver) All() ([]MigrationRecord, error) {
 	if d.AllError {
 		return []MigrationRecord{}, errors.New("Error")
@@ -37,12 +39,112 @@ func (d *dummyDriver) All() ([]MigrationRecord, error) {
 
 	return d.records, nil
 }
+
 func (d *dummyDriver) Exec(string) (time.Duration, error) {
 	if d.ExecError {
 		return time.Millisecond * 1, errors.New("Error")
 	}
 
 	return time.Millisecond * 1, nil
+}
+
+func Test_Status_String(t *testing.T) {
+	expectations := []struct {
+		status   Status
+		expected string
+	}{
+		{
+			Ignored, "IGNORED",
+		},
+		{
+			Applied, "APPLIED",
+		},
+		{
+			Pending, "PENDING",
+		},
+		{
+			Error, "ERROR",
+		},
+		{
+			Status(-1), "INVALID",
+		},
+	}
+
+	for _, expectation := range expectations {
+		if expectation.expected != expectation.status.String() {
+			t.Errorf("Expected %s, got %s", expectation.expected, expectation.status.String())
+			t.FailNow()
+		}
+	}
+}
+
+func Test_Info(t *testing.T) {
+	baseTime, _ := time.Parse(time.RFC3339, "2002-10-02T15:00:00Z")
+
+	records := []MigrationRecord{
+		{
+			Version:     1.0,
+			Description: "1.0",
+			AppliedAt:   baseTime,
+		},
+		{
+			Version:     2.0,
+			Description: "2.0",
+			AppliedAt:   baseTime.Add(2 * time.Second),
+		},
+	}
+
+	migrations := []Migration{
+		{
+			Version:     1.0,
+			Description: "Must Be APPLIED",
+			Script:      "does not matter!",
+		},
+		{
+			Version:     1.1,
+			Description: "Must Be IGNORED",
+			Script:      "does not matter!",
+		},
+		{
+			Version:     2.0,
+			Description: "Must Be APPLIED",
+			Script:      "does not matter!",
+		},
+		{
+			Version:     3.0,
+			Description: "Must Be PENDING",
+			Script:      "does not matter!",
+		},
+	}
+
+	d := New(&dummyDriver{records: records}, migrations, nil)
+	d.Migrate()
+	infos, err := d.Info()
+
+	if err != nil {
+		t.Error("Must not return error")
+		t.FailNow()
+	}
+
+	expectations := []Status{Applied, Ignored, Applied, Pending}
+
+	for i, info := range infos {
+		if expectations[i] != info.Status {
+			t.Errorf("Expected %s, got %s", expectations[i], info.Status)
+			t.FailNow()
+		}
+	}
+}
+
+func Test_Info_with_error(t *testing.T) {
+	driver := &dummyDriver{AllError: true}
+	migrations := []Migration{}
+
+	_, err := Info(driver, migrations)
+
+	if err == nil {
+		t.Error("Must emit error")
+	}
 }
 
 func Test_DuplicateMigrationVersionError_Error(t *testing.T) {
