@@ -2,6 +2,8 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/GuiaBolso/darwin)](https://goreportcard.com/report/github.com/GuiaBolso/darwin)
 [![GoDoc](https://godoc.org/github.com/GuiaBolso/darwin?status.svg)](https://godoc.org/github.com/GuiaBolso/darwin)
 
+Try browsing [the code on Sourcegraph](https://sourcegraph.com/github.com/GuiaBolso/darwin)!
+
 # Darwin
 
 Database schema evolution library for Go
