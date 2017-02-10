@@ -7,5 +7,5 @@ go:
   - 1.7
   - tip
 
-install:
-  - go get gopkg.in/DATA-DOG/go-sqlmock.v1
+before_install:
+  - go get -t
