@@ -124,7 +124,7 @@ type InvalidChecksumError struct {
 }
 
 func (i InvalidChecksumError) Error() string {
-	return fmt.Sprintf("Invalid cheksum for migration %f", i.Version)
+	return fmt.Sprintf("Invalid checksum for migration %f", i.Version)
 }
 
 // Validate if the database migrations are applied and consistent
