@@ -174,7 +174,7 @@ func Test_RemovedMigrationError_Error(t *testing.T) {
 func Test_InvalidChecksumError_Error(t *testing.T) {
 	err := InvalidChecksumError{Version: 1}
 
-	if err.Error() != fmt.Sprintf("Invalid cheksum for migration %f", 1.0) {
+	if err.Error() != fmt.Sprintf("Invalid checksum for migration %f", 1.0) {
 		t.Error("Must inform when a migration have an invalid checksum")
 	}
 }
