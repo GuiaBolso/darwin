@@ -60,29 +60,29 @@ func main() {
 
 # Questions
 
-Q. Why there is not a command line utility?
+Q. Why there is no command line utility?
 
 A. The purpose of this library is just be a library.
 
 Q. How can I read migrations from file system?
 
-A. You can read with the standard library and build the migration list.
+A. You can use the standard library for reading and build the migration list.
 
 Q. Can I put more than one statement in the same Script migration?
 
-A. I do not recommend. Put one database change per migration, if some migration fail, you exactly what statement caused the error. Also only postgres correctly handle rollback in DDL transactions. 
+A. I do not recommend it. Put one database change per migration, and if some migration fail, you know exactly what statement caused the error. Also only postgres handles rollback in DDL transactions correctly. 
 
-To be less annoying you can organize your migrations like? 1.0, 1.1, 1.2 and so on.
+To be less annoying you can organize your migrations using semver, like `1.0`, `1.1`, `1.2` and so on.
 
-Q. Why does not exists downgrade migrations?
+Q. Why there is no downgrade migrations?
 
 A. Please read https://flywaydb.org/documentation/faq#downgrade
 
-Q. Does Darwin perform a roll back if a migration fails?
+Q. Does Darwin performs a roll back if migration fails?
 
 A. Please read https://flywaydb.org/documentation/faq#rollback
 
-Q. What is the best strategy for dealing with hot fixes?
+Q. What is the best strategy to deal with hot fixes?
 
 A. Plese read https://flywaydb.org/documentation/faq#hot-fixes
 
