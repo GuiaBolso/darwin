@@ -2,11 +2,11 @@
 
 [![CircleCI](https://circleci.com/gh/ardanlabs/darwin.svg?style=svg)](https://circleci.com/gh/ardanlabs/darwin)
 
-Copyright (c) 2016 Claudemiro
+Copyright (c) 2016 Claudemiro  
 Copyright 2021, Ardan Labs  
 info@ardanlabs.com
 
-Project forked from:
+Project forked from:  
 https://github.com/GuiaBolso/darwin
 
 ## Licensing
