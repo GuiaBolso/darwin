@@ -28,9 +28,13 @@ func TestQLDialect(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dv := NewGenericDriver(db, QLDialect{})
 
-	d := New(dv, migrations, nil)
+	dv, err := NewGenericDriver(db, QLDialect{})
+	if err != nil {
+		t.Errorf("unable to construct driver: %s", err)
+	}
+
+	d := New(dv, migrations)
 	err = d.Migrate()
 	if err != nil {
 		t.Fatal(err)

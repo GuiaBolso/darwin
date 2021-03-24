@@ -12,29 +12,21 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 )
 
-func assertPanic(t *testing.T, f func()) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("The code did not panic")
-		}
-	}()
-	f()
-}
-
 func Test_NewGenericDriver_sql_nil(t *testing.T) {
-	assertPanic(t, func() {
-		NewGenericDriver(nil, MySQLDialect{})
-	})
+	_, err := NewGenericDriver(nil, MySQLDialect{})
+	if err == nil {
+		t.Fatal("should not be able to construct driver with no db connection")
+	}
 }
 
 func Test_NewGenericDriver_driver_nil(t *testing.T) {
 	db, _, _ := sqlmock.New()
-
 	defer db.Close()
 
-	assertPanic(t, func() {
-		NewGenericDriver(db, nil)
-	})
+	_, err := NewGenericDriver(db, nil)
+	if err == nil {
+		t.Fatal("should not be able to construct driver with no dialect")
+	}
 }
 
 func Test_GenericDriver_Create(t *testing.T) {
@@ -52,7 +44,10 @@ func Test_GenericDriver_Create(t *testing.T) {
 	mock.ExpectExec(escapeQuery(dialect.CreateTableSQL())).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectCommit()
 
-	d := NewGenericDriver(db, dialect)
+	d, err := NewGenericDriver(db, dialect)
+	if err != nil {
+		t.Errorf("unable to construct driver: %s", err)
+	}
 	d.Create()
 
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -79,7 +74,10 @@ func Test_GenericDriver_Insert(t *testing.T) {
 
 	dialect := MySQLDialect{}
 
-	d := NewGenericDriver(db, dialect)
+	d, err := NewGenericDriver(db, dialect)
+	if err != nil {
+		t.Errorf("unable to construct driver: %s", err)
+	}
 
 	mock.ExpectBegin()
 	mock.ExpectExec(escapeQuery(dialect.InsertSQL())).
@@ -112,7 +110,10 @@ func Test_GenericDriver_All_success(t *testing.T) {
 
 	dialect := MySQLDialect{}
 
-	d := NewGenericDriver(db, dialect)
+	d, err := NewGenericDriver(db, dialect)
+	if err != nil {
+		t.Errorf("unable to construct driver: %s", err)
+	}
 
 	rows := sqlmock.NewRows([]string{
 		"version", "description", "checksum", "applied_at", "execution_time", "success",
@@ -147,7 +148,10 @@ func Test_GenericDriver_All_error(t *testing.T) {
 
 	dialect := MySQLDialect{}
 
-	d := NewGenericDriver(db, dialect)
+	d, err := NewGenericDriver(db, dialect)
+	if err != nil {
+		t.Errorf("unable to construct driver: %s", err)
+	}
 
 	mock.ExpectQuery(escapeQuery(dialect.AllSQL())).
 		WillReturnError(errors.New("Generic error"))
@@ -175,7 +179,10 @@ func Test_GenericDriver_Exec(t *testing.T) {
 	stmt := "CREATE TABLE HELLO (id INT);"
 	dialect := MySQLDialect{}
 
-	d := NewGenericDriver(db, dialect)
+	d, err := NewGenericDriver(db, dialect)
+	if err != nil {
+		t.Errorf("unable to construct driver: %s", err)
+	}
 
 	mock.ExpectBegin()
 	mock.ExpectExec(escapeQuery(stmt)).
@@ -201,7 +208,10 @@ func Test_GenericDriver_Exec_error(t *testing.T) {
 	stmt := "CREATE TABLE HELLO (id INT);"
 	dialect := MySQLDialect{}
 
-	d := NewGenericDriver(db, dialect)
+	d, err := NewGenericDriver(db, dialect)
+	if err != nil {
+		t.Errorf("unable to construct driver: %s", err)
+	}
 
 	mock.ExpectBegin()
 	mock.ExpectExec(escapeQuery(stmt)).
@@ -241,11 +251,13 @@ func Test_byMigrationRecordVersion(t *testing.T) {
 }
 
 func Test_transaction_panic_sql_nil(t *testing.T) {
-	assertPanic(t, func() {
-		transaction(nil, func(tx *sql.Tx) error {
-			return nil
-		})
-	})
+	f := func(tx *sql.Tx) error {
+		return nil
+	}
+	err := transaction(nil, f)
+	if err == nil {
+		t.Fatal("should not be able to execute a transaction with a db connection")
+	}
 }
 
 func Test_transaction_error_begin(t *testing.T) {
@@ -319,7 +331,7 @@ func Test_transaction_panic_with_message(t *testing.T) {
 }
 
 func escapeQuery(s string) string {
-	re := regexp.MustCompile("\\s+")
+	re := regexp.MustCompile(`\\s+`)
 
 	s1 := regexp.QuoteMeta(s)
 	s1 = strings.TrimSpace(re.ReplaceAllString(s1, " "))

@@ -117,7 +117,7 @@ func Test_Info(t *testing.T) {
 		},
 	}
 
-	d := New(&dummyDriver{records: records}, migrations, nil)
+	d := New(&dummyDriver{records: records}, migrations)
 	d.Migrate()
 	infos, err := d.Info()
 
@@ -236,7 +236,7 @@ func Test_Validate_removed_migration(t *testing.T) {
 	}
 
 	// Running with struct
-	d := New(&dummyDriver{records: records}, migrations, nil)
+	d := New(&dummyDriver{records: records}, migrations)
 	err := d.Validate()
 
 	if err.(RemovedMigrationError).Version != 1 {
@@ -284,26 +284,12 @@ func Test_Migrate_migrate_all(t *testing.T) {
 
 	driver := &dummyDriver{records: []MigrationRecord{}}
 
-	infoChan := make(chan MigrationInfo, 2)
-
-	Migrate(driver, migrations, infoChan)
+	Migrate(driver, migrations)
 
 	all, _ := driver.All()
 
 	if len(all) != 2 {
 		t.Errorf("Must not apply all migrations")
-	}
-
-	info := <-infoChan
-
-	if info.Migration.Version != 1 {
-		t.Errorf("Must send a message for each migration applied")
-	}
-
-	info = <-infoChan
-
-	if info.Migration.Version != 2 {
-		t.Errorf("Must send a message for each migration applied")
 	}
 }
 
@@ -342,7 +328,7 @@ func Test_Migrate_migrate_partial(t *testing.T) {
 	}
 
 	// Running with struct
-	d := New(driver, migrations, nil)
+	d := New(driver, migrations)
 	d.Migrate()
 
 	all, _ = driver.All()
@@ -356,7 +342,7 @@ func Test_Migrate_migrate_error(t *testing.T) {
 	driver := &dummyDriver{CreateError: true}
 	migrations := []Migration{}
 
-	err := Migrate(driver, migrations, nil)
+	err := Migrate(driver, migrations)
 
 	if err == nil {
 		t.Error("Must emit error")
@@ -367,7 +353,7 @@ func Test_Migrate_with_error_in_Validate(t *testing.T) {
 	driver := &dummyDriver{AllError: true}
 	migrations := []Migration{}
 
-	err := Migrate(driver, migrations, nil)
+	err := Migrate(driver, migrations)
 
 	if err == nil {
 		t.Error("Must emit error")
@@ -384,7 +370,7 @@ func Test_Migrate_with_error_in_driver_insert(t *testing.T) {
 		},
 	}
 
-	err := Migrate(driver, migrations, nil)
+	err := Migrate(driver, migrations)
 
 	if err == nil {
 		t.Error("Must emit error")
@@ -401,7 +387,7 @@ func Test_Migrate_with_error_in_driver_exec(t *testing.T) {
 		},
 	}
 
-	Migrate(driver, migrations, nil)
+	Migrate(driver, migrations)
 
 	all, _ := driver.All()
 
