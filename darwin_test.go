@@ -1,11 +1,19 @@
 package darwin
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"testing"
 	"time"
+)
+
+// Success and failure markers.
+const (
+	success = "\u2713"
+	failed  = "\u2717"
 )
 
 type dummyDriver struct {
@@ -427,3 +435,74 @@ func Test_byMigrationVersion(t *testing.T) {
 		t.Errorf("Must order by version number")
 	}
 }
+
+func TestParse(t *testing.T) {
+	t.Log("Given the need to parse a sql migration file.")
+	{
+		testID := 0
+		t.Logf("\tTest %d:\tWhen handling the embedded schema.", testID)
+		{
+			migs := ParseMigrations(schemaDoc)
+			var buf bytes.Buffer
+			for _, mig := range migs {
+				buf.WriteString(fmt.Sprintf("-- version: %.1f\n", mig.Version))
+				buf.WriteString(fmt.Sprintf("-- description: %s\n", mig.Description))
+				buf.WriteString(mig.Script)
+			}
+
+			sql := strings.ToLower(schemaDoc)
+			if sql != buf.String() {
+				t.Logf("got: %v", buf.Bytes())
+				t.Logf("exp: %v", []byte(sql))
+				t.Fatalf("\t%s\tTest %d:\tShould be able to parse migrations.", failed, testID)
+			}
+			t.Logf("\t%s\tTest %d:\tShould be able to parse migrations.", success, testID)
+		}
+	}
+}
+
+var schemaDoc = `-- Version: 1.1
+-- Description: Create table users
+CREATE TABLE users (
+	user_id       UUID,
+	name          TEXT,
+	email         TEXT UNIQUE,
+	roles         TEXT[],
+	password_hash TEXT,
+	date_created  TIMESTAMP,
+	date_updated  TIMESTAMP,
+
+	PRIMARY KEY (user_id)
+);
+
+-- Version: 1.2
+-- Description: Create table products
+CREATE TABLE products (
+	product_id   UUID,
+	name         TEXT,
+	cost         INT,
+	quantity     INT,
+	date_created TIMESTAMP,
+	date_updated TIMESTAMP,
+
+	PRIMARY KEY (product_id)
+);
+
+-- Version: 1.3
+-- Description: Create table sales
+CREATE TABLE sales (
+	sale_id      UUID,
+	product_id   UUID,
+	quantity     INT,
+	paid         INT,
+	date_created TIMESTAMP,
+
+	PRIMARY KEY (sale_id),
+	FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE
+);
+
+-- Version: 2.1
+-- Description: Alter table products with user column"
+ALTER TABLE products
+	ADD COLUMN user_id UUID DEFAULT '00000000-0000-0000-0000-000000000000'
+`
