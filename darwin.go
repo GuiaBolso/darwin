@@ -105,7 +105,7 @@ func ParseMigrations(s string) []Migration {
 	var mig Migration
 	var script string
 	for scanner.Scan() {
-		v := strings.ToLower(scanner.Text())
+		v := scanner.Text()
 		switch {
 		case len(v) >= 5 && (v[:6] == "-- ver" || v[:5] == "--ver"):
 			mig.Script = script
