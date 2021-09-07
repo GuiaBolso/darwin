@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 )
@@ -445,15 +444,14 @@ func TestParse(t *testing.T) {
 			migs := ParseMigrations(schemaDoc)
 			var buf bytes.Buffer
 			for _, mig := range migs {
-				buf.WriteString(fmt.Sprintf("-- version: %.1f\n", mig.Version))
-				buf.WriteString(fmt.Sprintf("-- description: %s\n", mig.Description))
+				buf.WriteString(fmt.Sprintf("-- Version: %.1f\n", mig.Version))
+				buf.WriteString(fmt.Sprintf("-- Description: %s\n", mig.Description))
 				buf.WriteString(mig.Script)
 			}
 
-			sql := strings.ToLower(schemaDoc)
-			if sql != buf.String() {
-				t.Logf("got: %v", buf.Bytes())
-				t.Logf("exp: %v", []byte(sql))
+			if schemaDoc != buf.String() {
+				t.Logf("got: %s", buf.String())
+				t.Logf("exp: %s", string([]byte(schemaDoc)))
 				t.Fatalf("\t%s\tTest %d:\tShould be able to parse migrations.", failed, testID)
 			}
 			t.Logf("\t%s\tTest %d:\tShould be able to parse migrations.", success, testID)
