@@ -5,7 +5,7 @@ import (
 	"log"
 	"testing"
 
-	_ "github.com/cznic/ql/driver"
+	_ "modernc.org/ql/driver"
 )
 
 func TestQLDialect(t *testing.T) {
