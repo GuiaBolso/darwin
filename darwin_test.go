@@ -1,7 +1,6 @@
 package darwin
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"sort"
@@ -14,46 +13,6 @@ const (
 	success = "\u2713"
 	failed  = "\u2717"
 )
-
-type dummyDriver struct {
-	CreateError bool
-	InsertError bool
-	AllError    bool
-	ExecError   bool
-	records     []MigrationRecord
-}
-
-func (d *dummyDriver) Create() error {
-	if d.CreateError {
-		return errors.New("Error")
-	}
-	return nil
-}
-
-func (d *dummyDriver) Insert(m MigrationRecord) error {
-	if d.InsertError {
-		return errors.New("Error")
-	}
-
-	d.records = append(d.records, m)
-	return nil
-}
-
-func (d *dummyDriver) All() ([]MigrationRecord, error) {
-	if d.AllError {
-		return []MigrationRecord{}, errors.New("Error")
-	}
-
-	return d.records, nil
-}
-
-func (d *dummyDriver) Exec(string) (time.Duration, error) {
-	if d.ExecError {
-		return time.Millisecond * 1, errors.New("Error")
-	}
-
-	return time.Millisecond * 1, nil
-}
 
 func Test_Status_String(t *testing.T) {
 	expectations := []struct {
@@ -144,12 +103,9 @@ func Test_Info(t *testing.T) {
 }
 
 func Test_Info_with_error(t *testing.T) {
-	driver := &dummyDriver{AllError: true}
-	migrations := []Migration{}
+	d := New(&dummyDriver{AllError: true}, []Migration{})
 
-	_, err := Info(driver, migrations)
-
-	if err == nil {
+	if _, err := d.Info(); err == nil {
 		t.Error("Must emit error")
 	}
 }
@@ -195,9 +151,10 @@ func Test_Validate_invalid_version(t *testing.T) {
 		},
 	}
 
-	err := Validate(&dummyDriver{}, migrations)
+	d := New(&dummyDriver{}, migrations)
 
-	if err.(IllegalMigrationVersionError).Version != -1 {
+	err := d.Validate()
+	if err.(*IllegalMigrationVersionError).Version != -1 {
 		t.Errorf("Must not accept migrations with invalid version numbers")
 	}
 }
@@ -216,15 +173,15 @@ func Test_Validate_duplicated_version(t *testing.T) {
 		},
 	}
 
-	err := Validate(&dummyDriver{}, migrations)
+	d := New(&dummyDriver{}, migrations)
 
-	if err.(DuplicateMigrationVersionError).Version != 1 {
+	err := d.Validate()
+	if err.(*DuplicateMigrationVersionError).Version != 1 {
 		t.Errorf("Must not accept migrations with duplicated version numbers")
 	}
 }
 
 func Test_Validate_removed_migration(t *testing.T) {
-	// Other fields are not necessary for testing...
 	records := []MigrationRecord{
 		{
 			Version: 1.0,
@@ -242,17 +199,15 @@ func Test_Validate_removed_migration(t *testing.T) {
 		},
 	}
 
-	// Running with struct
 	d := New(&dummyDriver{records: records}, migrations)
-	err := d.Validate()
 
-	if err.(RemovedMigrationError).Version != 1 {
+	err := d.Validate()
+	if err.(*RemovedMigrationError).Version != 1 {
 		t.Errorf("Must not validate when some migration was removed from the migration list")
 	}
 }
 
 func Test_Validate_invalid_checksum(t *testing.T) {
-	// Other fields are not necessary for testing...
 	records := []MigrationRecord{
 		{
 			Version:  1.0,
@@ -268,9 +223,10 @@ func Test_Validate_invalid_checksum(t *testing.T) {
 		},
 	}
 
-	err := Validate(&dummyDriver{records: records}, migrations)
+	d := New(&dummyDriver{records: records}, migrations)
 
-	if err.(InvalidChecksumError).Version != 1 {
+	err := d.Validate()
+	if err.(*InvalidChecksumError).Version != 1 {
 		t.Errorf("Must not validate when some migration differ from the migration applied in the database")
 	}
 }
@@ -289,12 +245,10 @@ func Test_Migrate_migrate_all(t *testing.T) {
 		},
 	}
 
-	driver := &dummyDriver{records: []MigrationRecord{}}
+	d := New(&dummyDriver{records: []MigrationRecord{}}, migrations)
+	d.Migrate()
 
-	Migrate(driver, migrations)
-
-	all, _ := driver.All()
-
+	all, _ := d.driver.All()
 	if len(all) != 2 {
 		t.Errorf("Must not apply all migrations")
 	}
@@ -346,29 +300,24 @@ func Test_Migrate_migrate_partial(t *testing.T) {
 }
 
 func Test_Migrate_migrate_error(t *testing.T) {
-	driver := &dummyDriver{CreateError: true}
-	migrations := []Migration{}
+	d := New(&dummyDriver{CreateError: true}, []Migration{})
 
-	err := Migrate(driver, migrations)
-
+	err := d.Migrate()
 	if err == nil {
 		t.Error("Must emit error")
 	}
 }
 
 func Test_Migrate_with_error_in_Validate(t *testing.T) {
-	driver := &dummyDriver{AllError: true}
-	migrations := []Migration{}
+	d := New(&dummyDriver{AllError: true}, []Migration{})
 
-	err := Migrate(driver, migrations)
-
+	err := d.Migrate()
 	if err == nil {
 		t.Error("Must emit error")
 	}
 }
 
 func Test_Migrate_with_error_in_driver_insert(t *testing.T) {
-	driver := &dummyDriver{InsertError: true}
 	migrations := []Migration{
 		{
 			Version:     1,
@@ -377,15 +326,15 @@ func Test_Migrate_with_error_in_driver_insert(t *testing.T) {
 		},
 	}
 
-	err := Migrate(driver, migrations)
+	d := New(&dummyDriver{InsertError: true}, migrations)
 
+	err := d.Migrate()
 	if err == nil {
 		t.Error("Must emit error")
 	}
 }
 
 func Test_Migrate_with_error_in_driver_exec(t *testing.T) {
-	driver := &dummyDriver{ExecError: true}
 	migrations := []Migration{
 		{
 			Version:     1,
@@ -394,21 +343,19 @@ func Test_Migrate_with_error_in_driver_exec(t *testing.T) {
 		},
 	}
 
-	Migrate(driver, migrations)
+	d := New(&dummyDriver{ExecError: true}, migrations)
+	d.Migrate()
 
-	all, _ := driver.All()
-
+	all, _ := d.driver.All()
 	if len(all) != 0 {
 		t.Errorf("Must not apply all migrations")
 	}
 }
 
 func Test_planMigration_error_driver(t *testing.T) {
-	driver := &dummyDriver{AllError: true}
-	migrations := []Migration{}
+	d := New(&dummyDriver{AllError: true}, []Migration{})
 
-	_, err := planMigration(driver, migrations)
-
+	_, err := d.planMigration()
 	if err == nil {
 		t.Error("Must emit error")
 	}
@@ -442,21 +389,82 @@ func TestParse(t *testing.T) {
 		t.Logf("\tTest %d:\tWhen handling the embedded schema.", testID)
 		{
 			migs := ParseMigrations(schemaDoc)
-			var buf bytes.Buffer
-			for _, mig := range migs {
-				buf.WriteString(fmt.Sprintf("-- Version: %.1f\n", mig.Version))
-				buf.WriteString(fmt.Sprintf("-- Description: %s\n", mig.Description))
-				buf.WriteString(mig.Script)
+			for i, mig := range migs {
+				if mig.Checksum() != checksumDoc[i] {
+					t.Log("got:", mig.Checksum())
+					t.Log("exp:", checksumDoc[i])
+					t.Errorf("\t%s\tTest %d:\tShould have correct checksum for version %f.", failed, testID, mig.Version)
+				}
 			}
-
-			if schemaDoc != buf.String() {
-				t.Logf("got: %s", buf.String())
-				t.Logf("exp: %s", string([]byte(schemaDoc)))
-				t.Fatalf("\t%s\tTest %d:\tShould be able to parse migrations.", failed, testID)
-			}
-			t.Logf("\t%s\tTest %d:\tShould be able to parse migrations.", success, testID)
 		}
 	}
+}
+
+// =============================================================================
+
+type dummyDriver struct {
+	CreateError bool
+	InsertError bool
+	UpdateError bool
+	AllError    bool
+	ExecError   bool
+	records     []MigrationRecord
+}
+
+func (d *dummyDriver) Create() error {
+	if d.CreateError {
+		return errors.New("Error")
+	}
+	return nil
+}
+
+func (d *dummyDriver) Insert(m MigrationRecord) error {
+	if d.InsertError {
+		return errors.New("Error")
+	}
+
+	d.records = append(d.records, m)
+	return nil
+}
+
+func (d *dummyDriver) UpdateChecksum(checksum string, version float64) error {
+	if d.UpdateError {
+		return errors.New("Error")
+	}
+
+	for i, record := range d.records {
+		if record.Version == version {
+			record.Checksum = checksum
+			d.records[i] = record
+		}
+	}
+
+	return nil
+}
+
+func (d *dummyDriver) All() ([]MigrationRecord, error) {
+	if d.AllError {
+		return []MigrationRecord{}, errors.New("Error")
+	}
+
+	return d.records, nil
+}
+
+func (d *dummyDriver) Exec(string) (time.Duration, error) {
+	if d.ExecError {
+		return time.Millisecond * 1, errors.New("Error")
+	}
+
+	return time.Millisecond * 1, nil
+}
+
+// =============================================================================
+
+var checksumDoc = []string{
+	"f06593a9b87baa8fcad94582aad566e7",
+	"6b37bb9170d4d44e609ded3776eb3a32",
+	"7694752761db238c2ea9290267430ad6",
+	"5f840a746f43e417ce86eb9c46bb252b",
 }
 
 var schemaDoc = `-- Version: 1.1

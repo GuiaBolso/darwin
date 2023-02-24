@@ -1,10 +1,11 @@
-package darwin
+// Package postgres provides support to work with a postgres database.
+package postgres
 
-// PostgresDialect a Dialect configured for PostgreSQL.
-type PostgresDialect struct{}
+// Dialect a Dialect configured for PostgreSQL.
+type Dialect struct{}
 
 // CreateTableSQL returns the SQL to create the schema table.
-func (p PostgresDialect) CreateTableSQL() string {
+func (Dialect) CreateTableSQL() string {
 	return `CREATE TABLE IF NOT EXISTS darwin_migrations
                 (
                     id             SERIAL                  NOT NULL,
@@ -19,7 +20,7 @@ func (p PostgresDialect) CreateTableSQL() string {
 }
 
 // InsertSQL returns the SQL to insert a new migration in the schema table.
-func (p PostgresDialect) InsertSQL() string {
+func (Dialect) InsertSQL() string {
 	return `INSERT INTO darwin_migrations
                 (
                     version,
@@ -31,8 +32,17 @@ func (p PostgresDialect) InsertSQL() string {
             VALUES ($1, $2, $3, $4, $5);`
 }
 
+// UpdateChecksumSQL returns the SQL update a checksum for a version.
+func (Dialect) UpdateChecksumSQL() string {
+	return `UPDATE darwin_migrations
+			SET
+				checksum = $1
+			WHERE
+				version = $2;`
+}
+
 // AllSQL returns a SQL to get all entries in the table.
-func (p PostgresDialect) AllSQL() string {
+func (Dialect) AllSQL() string {
 	return `SELECT 
                 version,
                 description,

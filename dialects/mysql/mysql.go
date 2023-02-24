@@ -1,10 +1,11 @@
-package darwin
+// Package mysql provides support to work with a mysql database.
+package mysql
 
-// MySQLDialect a Dialect configured for MySQL.
-type MySQLDialect struct{}
+// Dialect a Dialect configured for MySQL.
+type Dialect struct{}
 
 // CreateTableSQL returns the SQL to create the schema table.
-func (m MySQLDialect) CreateTableSQL() string {
+func (Dialect) CreateTableSQL() string {
 	return `CREATE TABLE IF NOT EXISTS darwin_migrations
                 (
                     id             INT          auto_increment,
@@ -19,7 +20,7 @@ func (m MySQLDialect) CreateTableSQL() string {
 }
 
 // InsertSQL returns the SQL to insert a new migration in the schema table.
-func (m MySQLDialect) InsertSQL() string {
+func (Dialect) InsertSQL() string {
 	return `INSERT INTO darwin_migrations
                 (
                     version,
@@ -31,8 +32,17 @@ func (m MySQLDialect) InsertSQL() string {
             VALUES (?, ?, ?, ?, ?);`
 }
 
+// UpdateChecksumSQL returns the SQL update a checksum for a version.
+func (Dialect) UpdateChecksumSQL() string {
+	return `UPDATE darwin_migrations
+			SET
+				checksum = ?
+			WHERE
+				version = ?;`
+}
+
 // AllSQL returns a SQL to get all entries in the table.
-func (m MySQLDialect) AllSQL() string {
+func (Dialect) AllSQL() string {
 	return `SELECT 
                 version,
                 description,

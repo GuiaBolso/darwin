@@ -1,10 +1,11 @@
-package darwin
+// Package sqlite provides support to work with a sqlite database.
+package sqlite
 
-// SqliteDialect a Dialect configured for Sqlite3.
-type SqliteDialect struct{}
+// Dialect a Dialect configured for Sqlite3.
+type Dialect struct{}
 
 // CreateTableSQL returns the SQL to create the schema table.
-func (s SqliteDialect) CreateTableSQL() string {
+func (Dialect) CreateTableSQL() string {
 	return `CREATE TABLE IF NOT EXISTS darwin_migrations
                 (
                     id             INTEGER  PRIMARY KEY,
@@ -18,7 +19,7 @@ func (s SqliteDialect) CreateTableSQL() string {
 }
 
 // InsertSQL returns the SQL to insert a new migration in the schema table.
-func (s SqliteDialect) InsertSQL() string {
+func (Dialect) InsertSQL() string {
 	return `INSERT INTO darwin_migrations
                 (
                     version,
@@ -30,8 +31,17 @@ func (s SqliteDialect) InsertSQL() string {
             VALUES (?, ?, ?, ?, ?);`
 }
 
+// UpdateChecksumSQL returns the SQL update a checksum for a version.
+func (Dialect) UpdateChecksumSQL() string {
+	return `UPDATE darwin_migrations
+			SET
+				checksum = ?
+			WHERE
+				version = ?;`
+}
+
 // AllSQL returns a SQL to get all entries in the table.
-func (s SqliteDialect) AllSQL() string {
+func (Dialect) AllSQL() string {
 	return `SELECT 
                 version,
                 description,
